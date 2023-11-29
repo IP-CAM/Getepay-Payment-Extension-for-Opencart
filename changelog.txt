@@ -1,7 +1,0 @@
-=====================================
-Date	  : Version: Description
-=====================================
-
-2017-10-18: v3.0.0 : Initial release.
-		     Test on PHP 8.0, 8.1, 8.2
-                     Test on OpenCart 4.0.2.3.
