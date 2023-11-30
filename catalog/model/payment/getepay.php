@@ -83,8 +83,6 @@ class Getepay extends Model
             "terminalId"=>$this->config->get('payment_getepay_key_terminalId'),
             "req"=>$newCipher
         );
-        //$url = "https://p.getepay.in:8443/getepayPortal/pg/generateInvoice";
-        //$url = "https://pay1.getepay.in:8443/getepayPortal/pg/generateInvoice";
         $url = $this->config->get('payment_getepay_key_url');
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $url);

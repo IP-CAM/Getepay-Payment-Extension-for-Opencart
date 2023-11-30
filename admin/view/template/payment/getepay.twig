@@ -97,6 +97,53 @@
                      </div>
                      <hr>
                      <div class="row align-items-center form-group">
+                                <label class="d-flex flex-row-reverse col-sm-2 col-form-label control-label"
+                                       for="input-notifyredirect">{{ entry_notify_getepay_payment_chk }}</label>
+                                <div class="col-sm-9">
+                                    <select name="payment_getepay_notify_payment" id="input-notifyredirect"
+                                            class="form-control">
+                                        {% if url_getepay_notify_payment %}
+                                       <option value="1" selected="selected">{{ text_enabled }}</option>
+                                       <option value="0">{{ text_disabled }}</option>
+                                       {% else %}
+                                       <option value="1">{{ text_enabled }}</option>
+                                       <option value="0" selected="selected">{{ text_disabled }}</option>
+                                       {% endif %}
+                                    </select>
+                                </div>
+                        </div>
+                     <hr>
+                     <div class="row align-items-center form-group">
+                        <label class="d-flex flex-row-reverse col-sm-2 col-form-label control-label" for="input-key-paymentchkurl">{{ entry_key_recheck_url }}</label>
+                        <div class="col-sm-9">
+                           <input type="text" name="payment_getepay_key_recheck_url" value="{{ getepay_key_recheck_url }}" placeholder="{{ entry_key_recheck_url }}" id="input-key-paymentchkurl" class="form-control" />
+                           {% if error_key_recheck_url %}
+                           <div class="text-danger">{{ error_key_recheck_url }}</div>
+                           {% endif %}
+                        </div>
+                     </div>
+                     <hr>
+                     <div class="row align-items-center form-group">
+                        <label class="d-flex flex-row-reverse col-sm-2 col-form-label control-label" for="input-key-callback_url">{{ entry_key_callback_url }}</label>
+                        <div class="col-sm-9">
+                           <input type="text" name="payment_getepay_key_callback_url" value="{{ getepay_callback_url }}" placeholder="{{ getepay_callback_url }}" id="input-key-callback_url" class="form-control" onclick="copyToClipboard('input-key-callback_url')" readonly />
+                           {% if getepay_callback_url %}
+                           <div class="text-danger">Click on Url to copy</div>
+                           {% endif %}
+                        </div>
+                     </div>
+
+                     <script>
+                        function copyToClipboard(elementId) {
+                           var copyText = document.getElementById(elementId);
+                           copyText.select();
+                           copyText.setSelectionRange(0, 99999);
+                           document.execCommand("copy");
+                           alert("URL copied: " + copyText.value);
+                        }
+                     </script>
+                     <hr>
+                     <div class="row align-items-center form-group">
                         <label class="d-flex flex-row-reverse col-sm-2 col-form-label control-label" for="input-status">{{ entry_status }}</label>
                         <div class="col-sm-9">
                            <select name="payment_getepay_status" id="input-status" class="form-control">

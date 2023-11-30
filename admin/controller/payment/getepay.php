@@ -9,6 +9,8 @@ class Getepay extends Controller
 {
     const PAYMENT_URL      = "marketplace/extension";
     const GETEPAY_LANGUAGE = "extension/getepay/payment/getepay";
+	const WEBHOOK_URL    = HTTP_CATALOG . 'index.php?route=extension/getepay/payment/getepay.webhook';
+	const CALLBACK_URL    = HTTP_CATALOG . 'index.php?route=extension/getepay/payment/getepay.notify_callback';
 
     private $error = array();
     private $tableName = DB_PREFIX . 'getepay_transaction';
@@ -21,20 +23,21 @@ class Getepay extends Controller
     public function install()
     {
         $query = <<<QUERY
-create table if not exists {$this->tableName} (
-    getepay_id int auto_increment primary key,
-    customer_id int not null,
-    order_id int not null,
-    getepay_transaction_id varchar(255) not null,
-    getepay_payment_status varchar(255) not null,
-    getepay_data text null,
-    getepay_session text null,
-    date_created datetime not null,
-    date_modified datetime not null
-)
-QUERY;
-
-        $this->db->query($query);
+        CREATE TABLE IF NOT EXISTS {$this->tableName} (
+            getepay_id INT AUTO_INCREMENT PRIMARY KEY,
+            customer_id INT NOT NULL,
+            order_id INT NOT NULL UNIQUE,
+            getepay_transaction_id VARCHAR(255) NOT NULL,
+            getepay_payment_status VARCHAR(255) NOT NULL,
+            getepay_callback_status TEXT NULL,
+            getepay_data TEXT NULL,
+            getepay_session TEXT NULL,
+            date_created DATETIME NOT NULL,
+            date_modified DATETIME NOT NULL
+        )
+        QUERY;
+        
+        $this->db->query($query);        
 
         $this->load->model('setting/setting');
 
@@ -78,6 +81,22 @@ QUERY;
         );
     }
 
+    /**
+     * @return string
+     */
+    private function getNotifyUrl(): string
+    {
+        $notifyUrl = "";
+        if ($this->config->get('payment_getepay_notify_payment') === 1) {
+            $notifyUrl = filter_var(
+                $this->url->link('extension/getepay/payment/getepay.notify_handler', '', true),
+                FILTER_SANITIZE_URL
+            );
+        }
+
+        return $notifyUrl;
+    }
+
     public function index()
     {
         //$this->language->load('extension/getepay/payment/getepay');
@@ -85,14 +104,6 @@ QUERY;
 
         $this->document->setTitle($this->language->get('heading_title'));
         $this->load->model('setting/setting');
-
-        // if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
-        //     $this->model_setting_setting->editSetting('payment_getepay', $this->request->post);
-
-        //     $this->session->data['success'] = $this->language->get('text_success');
-
-        //     $this->response->redirect($this->url->link('marketplace/extension', 'user_token=' . $this->session->data['user_token'] . '&type=payment', true));
-        // }
 
         if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
             $this->model_setting_setting->editSetting('payment_getepay', $this->request->post);
@@ -111,6 +122,7 @@ QUERY;
         $data['entry_key_mid']                  = $this->language->get('entry_key_mid');
         $data['entry_key_terminalId']           = $this->language->get('entry_key_terminalId');
         $data['entry_order_status']             = $this->language->get('entry_order_status');
+        $data['entry_notify_getepay_payment_chk']   = $this->language->get('entry_notify_getepay_payment_chk');
         $data['entry_status']                   = $this->language->get('entry_status');
         $data['entry_sort_order']               = $this->language->get('entry_sort_order');
         $data['entry_payment_action']           = $this->language->get('entry_payment_action');
@@ -160,31 +172,13 @@ QUERY;
             $data['error_key_url'] = '';
         }
 
-        if (isset($this->error['payment_getepay_webhook_secret'])) {
-            $data['error_webhook_secret'] = $this->error['payment_getepay_webhook_secret'];
-        } else {
-            $data['error_webhook_secret'] = '';
-        }
+        // if (isset($this->error['payment_getepay_webhook_secret'])) {
+        //     $data['error_webhook_secret'] = $this->error['payment_getepay_webhook_secret'];
+        // } else {
+        //     $data['error_webhook_secret'] = '';
+        // }
 
         $data['breadcrumbs'] = array();
-
-        // $data['breadcrumbs'][] = array(
-        //     'text' => $this->language->get('text_home'),
-        //     'href' => $this->url->link ('common/dashboard', 'user_token='.$this->session->data['user_token'], 'SSL'),
-        //     'separator' => false,
-        // );
-
-        // $data['breadcrumbs'][] = array(
-        //     'text' => $this->language->get('text_extension'),
-        //     'href' => $this->url->link('marketplace/extension', 'user_token='.$this->session->data['user_token'].'&type=payment', 'SSL'),
-        //     'separator' => ' :: ',
-        // );
-
-        // $data['breadcrumbs'][] = array(
-        //     'text' => $this->language->get('heading_title'),
-        //     'href' => $this->url->link('extension/getepay/payment/getepay', 'user_token='.$this->session->data['user_token'], 'SSL'),
-        //     'separator' => ' :: ',
-        // );
 
         $data['breadcrumbs'][] = array(
             'text' => $this->language->get('text_home'),
@@ -253,6 +247,18 @@ QUERY;
             $data['getepay_status'] = $this->config->get('payment_getepay_status');
         }
 
+        if (isset($this->request->post['payment_getepay_notify_payment'])) {
+            $data['url_getepay_notify_payment'] = $this->request->post['payment_getepay_notify_payment'];
+        } else {
+            $data['url_getepay_notify_payment'] = $this->config->get('payment_getepay_notify_payment');
+        }
+
+        if (isset($this->request->post['payment_getepay_key_recheck_url'])) {
+            $data['getepay_key_recheck_url'] = $this->request->post['payment_getepay_key_recheck_url'];
+        } else {
+            $data['getepay_key_recheck_url'] = $this->config->get('payment_getepay_key_recheck_url');
+        }
+
         if (isset($this->request->post['payment_getepay_sort_order'])) {
             $data['getepay_sort_order'] = $this->request->post['payment_getepay_sort_order'];
         } else {
@@ -271,38 +277,27 @@ QUERY;
             $data['getepay_max_capture_delay'] = $this->config->get('payment_getepay_max_capture_delay');
         }
 
-        if (isset($this->request->post['payment_getepay_webhook_status'])) {
-            $data['getepay_webhook_status'] = $this->request->post['payment_getepay_webhook_status'];
-        } else {
-            $data['getepay_webhook_status'] = $this->config->get('payment_getepay_webhook_status');
-        }
+        // if (isset($this->request->post['payment_getepay_webhook_status'])) {
+        //     $data['getepay_webhook_status'] = $this->request->post['payment_getepay_webhook_status'];
+        // } else {
+        //     $data['getepay_webhook_status'] = $this->config->get('payment_getepay_webhook_status');
+        // }
 
-        if (isset($this->request->post['payment_getepay_webhook_secret'])) {
-            $data['getepay_webhook_secret'] = $this->request->post['payment_getepay_webhook_secret'];
-        } else {
-            $data['getepay_webhook_secret'] = $this->config->get('payment_getepay_webhook_secret');
-        }
+        // if (isset($this->request->post['payment_getepay_webhook_secret'])) {
+        //     $data['getepay_webhook_secret'] = $this->request->post['payment_getepay_webhook_secret'];
+        // } else {
+        //     $data['getepay_webhook_secret'] = $this->config->get('payment_getepay_webhook_secret');
+        // }
         
-        //$data['getepay_webhook_url'] = HTTPS_CATALOG . 'index.php?route=extension/getepay/payment/getepay/webhook';
-        $data['getepay_webhook_url'] = 'http://localhost/opencart/index.php?route=extension/getepay/payment/getepay/webhook';
+        $data['getepay_webhook_url'] = self::WEBHOOK_URL;
+        $data['getepay_callback_url'] = self::CALLBACK_URL;
 
-
-       // $this->template = 'extension/getepay/payment/getepay';
-        // $this->children = array(
-        //     'common/header',
-        //     'common/footer',
-        // );
         $data['header'] = $this->load->controller('common/header');
         $data['column_left'] = $this->load->controller('common/column_left');
         $data['footer'] = $this->load->controller('common/footer');
 
         $this->response->setOutput($this->load->view(self::GETEPAY_LANGUAGE, $data));
     }
-
-    // protected function validate()
-    // {
-    //     return true;
-    // }
 
     protected function validate()
     {
